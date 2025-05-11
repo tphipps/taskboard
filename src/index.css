@@ -1,0 +1,37 @@
+@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@plugin "daisyui" {
+   themes: light --default, dark --prefersdark;
+ }
+
+label.badge:has(input.checkbox) {
+  padding-left: 2px;
+  gap: 2px;
+}
+
+.chip-on-calendar {
+  padding-left: 2px;
+  padding-right: 2px;
+  gap: 1px;
+}
+
+.tb-badge-done {
+  border-color: currentColor !important;
+}
+
+.tb-badge-done {
+  border-color: currentColor !important;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  50% { transform: translateX(6px); }
+  75% { transform: translateX(-6px); }
+}
+
+.shake {
+  animation: shake 0.4s ease-in-out;
+}
