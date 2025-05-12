@@ -1,7 +1,10 @@
-
-// Assumes connection to a SQL backend via API endpoints
 import React, { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+
+import TaskChip from "./components/TaskChip";
+import ChangePinModal from "./components/ChangePinModal";
+import LoginBox from "./components/LoginBox";
+
 import {
   format,
   startOfMonth,
@@ -14,11 +17,10 @@ import {
 import {
   DndContext,
   DragOverlay,
-  useDraggable,
   useDroppable,
 } from "@dnd-kit/core";
-import { Star, Award, MoveLeft, MoveRight, CircleX, X as LucideX } from "lucide-react";
-import { motion } from "framer-motion";
+import { Star, MoveLeft, MoveRight } from "lucide-react";
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 const api = {
@@ -57,13 +59,14 @@ const api = {
   },
 };
 
-
 // Add helper for drop validation
 function isDropAllowed(task, dropDate, tasks) {
   const taskDate = parseISO(task.startDate);
-  const today = new Date();
+  const planned = task.plannedDate ? parseISO(task.plannedDate) : null;
 
   if (taskDate.getMonth() !== dropDate.getMonth() || taskDate.getFullYear() !== dropDate.getFullYear()) return false;
+
+  if (planned && isSameDay(planned, dropDate)) return true;
 
   const duplicate = tasks.some(t => {
     const planned = t.plannedDate && isSameDay(parseISO(t.plannedDate), dropDate);
@@ -79,240 +82,14 @@ function isDropAllowed(task, dropDate, tasks) {
   return true;
 }
 
-
-// Updated onDragEnd handler
-function handleDragEnd(event, tasks, handleDrop) {
-  const { active, over } = event;
-  if (!active || !over) return;
-
-  const task = tasks.find(t => String(t.id) === String(active.id));
-
-  if (!task) return;
-
-  if (over) {
-    const dropDate = new Date(over.id);
-    if (isDropAllowed(task, dropDate, tasks)) {
-      handleDrop(task, dropDate);
-      return;
-    }
-  }
-
-  // Unplan if dropped outside a valid area
-  if (task.plannedDate && !task.completionDate) {
-    handleDrop(task, null);
-  }
-}
-
-// Export helper for integration elsewhere
-export { isDropAllowed };
-
-function TaskChip({ task, onMarkIncomplete, activeId, setTasks }) {
-  if (!task?.id) return null;
-
-  const today = new Date();
-  const baseDate = task.plannedDate ? parseISO(task.plannedDate) : parseISO(task.startDate);
-  const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-  const weekEnd = addDays(weekStart, 6);
-
-  const isDraggable =(() => {
-    // Tasks that are marked complete are not draggable
-    if (task.completionDate) return false;
-  
-    if (task.type === "W") {
-      return baseDate >= weekStart;
-    }
-  
-    if (task.type === "M") {
-      return baseDate.getMonth() === today.getMonth() &&
-             baseDate.getFullYear() === today.getFullYear();
-    }
-  
-    return false;
-  })();
-
-  const draggable = useDraggable({ id: String(task.id), data: task });
-  const { attributes, listeners, setNodeRef, transform } = isDraggable ? draggable : { attributes: {}, listeners: {}, setNodeRef: undefined, transform: null };
-  const style = transform ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 50 } : undefined;
-  const isComplete = Boolean(task.completionDate);
-  const isTodayOrPast = task.plannedDate ? new Date() < parseISO(task.plannedDate): null;
-  const isReviewed = Boolean(task.reviewedDate);
-
-  // For use in Daily tasks only  
-  const isToday = new Date().toDateString() === parseISO(task.startDate).toDateString();
-
-  let chipColor =
-      task.type === "M"
-      ? "badge-secondary"
-      : task.type === "W"
-      ? "badge-warning"
-      : "badge-primary";
-
-  // Build a chip that is in the incomplete stack
-  if(!task.plannedDate && task.type !== "D") {
-    return (
-      <motion.div id={String(task.id)}
-        ref={setNodeRef}
-        {...listeners}
-        {...attributes}
-        className={`badge chip-on-calendar badge-outline badge-sm px-2 py-1 gap-1 ${chipColor}`}
-        style={style}
-        transition={{ duration: 0.4 }}
-      >
-        {(task.type == "W" && !isComplete && parseISO(task.startDate) < weekStart) ? <CircleX size={16} /> : null}
-        {(task.type == "M" && !isComplete && parseISO(task.startDate).getMonth() < new Date().getMonth()) ? <CircleX size={16} /> : null}
-        {task.taskName}
-      </motion.div>
-    );
-  }
-
-  // Build a chip that has been reviewed and therefore locked
-  if (isReviewed) {
-    return (
-      <div
-      key={task.id}
-      className={`badge badge-sm chip-on-calendar ${chipColor}`}
-      >
-        <Award height="20" width="20" fill="goldenrod" />
-        {task.taskName}
-      </div>
-    );
-  }
-  // Build a chip that has been missed
-  if ((task.type == "D" && !isToday && isTodayOrPast && !isComplete) || (task.type == "W" && !isComplete && parseISO(task.startDate) < weekStart)) {
-    return (
-    <label
-      key={task.id}
-      className={`chip-on-calendar badge badge-outline badge-sm ${chipColor}`}
-    >
-      <CircleX size={16} />
-      {task.taskName}
-    </label>
-    );
-  }
-
-  // Build a chip that's on the calendar
-  return (
-    <motion.div id={String(task.id)}
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      className={`chip-on-calendar badge badge-outline badge-sm px-2 py-1 gap-1 ${chipColor}`}
-      style={style}
-      transition={{ duration: 0.4 }}
-    >
-    <motion.input
-      type="checkbox"
-      className="checkbox checkbox-xs"
-      initial={{ scale: 0 }}
-      animate={{ scale: 1 }}
-      transition={{ duration: 0.5, ease: 'easeOut' }}
-      defaultChecked={isComplete}
-      onPointerDown={(!isTodayOrPast) ? (e) => e.stopPropagation():null} // Prevents the checkbox from triggering the drag event
-      disabled={(task.type == 'D') ? !isToday: isTodayOrPast}
-      onChange={(e) => {
-        e.stopPropagation();
-        const newCompleted = e.target.checked;
-        const completionDate = newCompleted ? new Date() : null;
-        api.updateTaskCompletion(task.id, completionDate);
-        setTasks(prev =>
-          prev.map(t =>
-            t.id === task.id
-              ? { ...t, completionDate: completionDate ? completionDate.toISOString() : null }
-              : t
-          )
-        );
-      }}
-    />
-      {task.taskName}
-    </motion.div>
-  );
-}
-
-const handleMarkIncomplete = (task) => {
-  const chip = document.getElementById(task.id);
-  const returnArea = document.querySelector(`.task-return-area-${task.type}`);
-
-  if (!chip || !returnArea) return;
-
-  const chipRect = chip.getBoundingClientRect();
-  const ghost = chip.cloneNode(true);
-  const ghostStyle = ghost.style;
-  ghost.id = '';
-  ghostStyle.position = 'fixed';
-  ghostStyle.top = `${chipRect.top}px`;
-  ghostStyle.left = `${chipRect.left}px`;
-  ghostStyle.width = `${chipRect.width}px`;
-  ghostStyle.height = `${chipRect.height}px`;
-  ghostStyle.zIndex = '1000';
-  ghostStyle.pointerEvents = 'none';
-
-  document.body.appendChild(ghost);
-
-  requestAnimationFrame(() => {
-    const target = document.getElementById(task.id);
-    if (!target) return;
-    const targetRect = target.getBoundingClientRect();
-    const deltaX = targetRect.left - chipRect.left;
-    const deltaY = targetRect.top - chipRect.top;
-
-    ghost.animate([
-      { transform: 'translate(0, 0)', opacity: 1 },
-      { transform: `translate(${deltaX}px, ${deltaY}px)`, opacity: 0.3 }
-    ], {
-      duration: 800,
-      easing: 'cubic-bezier(0.22, 1, 0.36, 1)'
-    }).onfinish = () => {
-      const target = document.getElementById(task.id);
-      document.body.removeChild(ghost);
-      handleDrop(task, null);
-    };
-  });
-};
-
-function DroppableDay({ date, onDrop, tasks, onMarkIncomplete, activeId, handleDrop, targetMonth, setTasks }) {
+function DroppableDay({ date, onDrop, tasks, activeId, handleDrop, targetMonth, setTasks }) {
   const { setNodeRef, isOver } = useDroppable({ id: date.toISOString() });
-  const [activeTask, setActiveTask] = useState(null);
-
-  useEffect(() => {
-    if (!activeId) return setActiveTask(null);
-    const task = tasks.find(t => t.id === activeId);
-    setActiveTask(task || null);
-  }, [isOver, activeId, tasks]);
 
   const isInvalidDrop = (() => {
     if (!activeId) return false;
     const activeTask = tasks.find((t) => String(t.id) === String(activeId));
     if (!activeTask || activeTask.completionDate) return false;
-    const dropDate = date;
-    const taskDate = parseISO(activeTask.startDate);
-    const today = new Date();
-
-    if (dropDate.getMonth() !== targetMonth.getMonth()) return true;
-
-    const duplicate = tasks.some(t =>
-      t.id !== activeTask.id &&
-      t.taskName === activeTask.taskName &&
-      t.type === activeTask.type &&
-      (
-        (t.completionDate && isSameDay(parseISO(t.completionDate), dropDate)) ||
-        (t.plannedDate && isSameDay(parseISO(t.plannedDate), dropDate)) ||
-        (t.type === "D" && isSameDay(parseISO(t.startDate), dropDate))
-      )
-    );
-    if (duplicate) return true;
-
-    if (activeTask.type === "W") {
-      const dropWeekStart = startOfWeek(dropDate, { weekStartsOn: 1 });
-      const dropWeekEnd = addDays(dropWeekStart, 6);
-      return taskDate < dropWeekStart || taskDate > dropWeekEnd;
-    }
-
-    if (activeTask.type === "M") {
-      return taskDate.getMonth() !== dropDate.getMonth() ||
-             taskDate.getFullYear() !== dropDate.getFullYear();
-    }
-
-    return false;
+    return !isDropAllowed(activeTask, date, tasks);
   })();
 
   const dropColor =
@@ -347,29 +124,22 @@ function DroppableDay({ date, onDrop, tasks, onMarkIncomplete, activeId, handleD
                 task={task}
                 activeId={activeId}
                 setTasks={setTasks}
-                onMarkIncomplete={handleMarkIncomplete}
               />
             );
           })}
 
-      {tasks
-      /* Render weekly and monthly tasks - this only renders tasks that are planned (i.e. in the calendar)
-        - If the task is completed and reviewed, lock it
-        - It the task is completed but not reviewed, allow changes but only in the current week / month depending on the task type
-        - If the task is not completed, allow changes but only in the current week / month depending on the task type
-      */
-        .filter((t) => (t.type === "W" || t.type === "M") && t.plannedDate && isSameDay(parseISO(t.plannedDate), date))
-        .map((task) => {
-          return (
-            <TaskChip
-              key={task.id}
-              task={task}
-              activeId={activeId}
-              setTasks={setTasks}
-              onMarkIncomplete={handleMarkIncomplete}
-            />
-          );
-        })}
+        {tasks
+          .filter((t) => (t.type === "W" || t.type === "M") && t.plannedDate && isSameDay(parseISO(t.plannedDate), date))
+          .map((task) => {
+            return (
+              <TaskChip
+                key={task.id}
+                task={task}
+                activeId={activeId}
+                setTasks={setTasks}
+              />
+            );
+          })}
       </div>
     </div>
   );
@@ -381,19 +151,13 @@ export default function TaskBoard() {
   const [users, setUsers] = useState([]);
   const [authenticatedUser, setAuthenticatedUser] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [pin, setPin] = useState("");
+  
   const [loginError, setLoginError] = useState("");
   const [targetMonth, setTargetMonth] = useState(startOfMonth(new Date()));
 
-  const [changePinStep, setChangePinStep] = useState(1);
-  const [currentPinEntry, setCurrentPinEntry] = useState("");
-  const [newPinEntry, setNewPinEntry] = useState("");
-  const [pinError, setPinError] = useState("");
-  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+  const [successAlertText, setSuccessAlertText] = useState("");
 
-  const [step, setStep] = useState(1);
-  const [currentPin, setCurrentPin] = useState("");
-  const [newPin, setNewPin] = useState("");
+  const [pinModalOpen, setPinModalOpen] = useState(false);
 
   const goToPreviousMonth = () => {
     setTargetMonth(prev => {
@@ -410,81 +174,6 @@ export default function TaskBoard() {
       return startOfMonth(newMonth);
     });
   };
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (!document.getElementById("change-pin-modal")?.open) return;
-  
-      if (/^\d$/.test(e.key)) {
-        setPinError("");
-  
-        if (changePinStep === 1) {
-          setCurrentPinEntry(prev => {
-            const next = prev + e.key;
-            if (next.length === 4) {
-              fetch(`${API_BASE}/verify_pin.php`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_id: authenticatedUser.id, pin: next })
-              })
-                .then(res => {
-                  if (res.ok) setChangePinStep(2);
-                  else throw new Error("Invalid PIN");
-                })
-                .catch(() => {
-                  setPinError("Incorrect current PIN");
-                  setTimeout(() => setPinError(""), 3000);
-                  setCurrentPinEntry("");
-                });
-            }
-            return next;
-          });
-        } else {
-          setNewPinEntry(prev => {
-            const next = prev + e.key;
-            if (next.length === 4) {
-              fetch(`${API_BASE}/change_pin.php`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  user_id: authenticatedUser.id,
-                  current_pin: currentPinEntry,
-                  new_pin: next
-                })
-              })
-                .then(res => {
-                  if (!res.ok) throw new Error();
-                  setShowSuccessAlert(true);
-                  setTimeout(() => setShowSuccessAlert(false), 3000);
-                  document.getElementById("change-pin-modal")?.close();
-                  setChangePinStep(1);
-                  setCurrentPinEntry("");
-                  setNewPinEntry("");
-                  setPinError("");
-                })
-                .catch(() => {
-                  setPinError("Failed to change PIN");
-                  setNewPinEntry("");
-                });
-            }
-            return next;
-          });
-        }
-      }
-  
-      if (e.key === "Backspace") {
-        if (changePinStep === 1) {
-          setCurrentPinEntry(p => p.slice(0, -1));
-        } else {
-          setNewPinEntry(p => p.slice(0, -1));
-        }
-      }
-    };
-  
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [changePinStep, authenticatedUser, currentPinEntry]);
-  
 
   useEffect(() => {
     themeChange();
@@ -505,52 +194,6 @@ export default function TaskBoard() {
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (!selectedUser) return;
-      if (e.key >= '0' && e.key <= '9') {
-        const newPin = pin + e.key;
-        setPin(newPin);
-        setLoginError("");
-        if (newPin.length === 4) {
-          fetch(`${API_BASE}/verify_pin.php`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: selectedUser.id, pin: newPin })
-          })
-            .then(res => {
-              if (res.status === 200) return res.json();
-              if (res.status === 401) throw new Error("unauthorized");
-              throw new Error("network error");
-            })
-            .then(data => {
-              setAuthenticatedUser(selectedUser);
-              setSelectedUser(null);
-              setPin("");
-              setLoginError("");
-            })
-            .catch(err => {
-              if (err.message === "unauthorized") {
-                setLoginError("Invalid PIN. Please try again.");
-                setTimeout(() => setLoginError(""), 3000);
-                setPin("");
-              } else {
-                setLoginError("Something went wrong. Please try again.");
-                setTimeout(() => setLoginError(""), 3000);
-                setPin("");
-              }
-            });
-        }
-      } else if (e.key === 'Backspace') {
-        setPin(pin.slice(0, -1));
-      } else if (e.key === 'Escape') {
-        setSelectedUser(null);
-        setPin("");
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedUser, pin]);
   
   const [tasks, setTasks] = useState([]);
   const [activeId, setActiveId] = useState(null);
@@ -588,62 +231,6 @@ export default function TaskBoard() {
     });
   });
 
-  // Helper for PIN change
-function handlePinInput(n) {
-  if (n === "") return;
-  setPinError("");
-
-  const update = changePinStep === 1
-    ? currentPinEntry + n
-    : newPinEntry + n;
-
-  if (changePinStep === 1) {
-    setCurrentPinEntry(update);
-    if (update.length === 4) {
-      fetch(`${API_BASE}/verify_pin.php`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: authenticatedUser.id, pin: update })
-      })
-        .then(res => {
-          if (res.ok) setChangePinStep(2);
-          else throw new Error("Invalid PIN");
-        })
-        .catch(() => {
-          setPinError("Incorrect current PIN");
-          setCurrentPinEntry("");
-        });
-    }
-  } else {
-    setNewPinEntry(update);
-    if (update.length === 4) {
-      fetch(`${API_BASE}/change_pin.php`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: authenticatedUser.id,
-          current_pin: currentPinEntry,
-          new_pin: update
-        })
-      })
-        .then(res => {
-          if (!res.ok) throw new Error();
-          setShowSuccessAlert(true);
-          setTimeout(() => setShowSuccessAlert(false), 3000);
-          document.getElementById("change-pin-modal")?.close();
-          setChangePinStep(1);
-          setCurrentPinEntry("");
-          setNewPinEntry("");
-          setPinError("");
-        })
-        .catch(() => {
-          setPinError("Failed to change PIN");
-          setNewPinEntry("");
-        });
-    }
-  }
-}
-
   const handleDrop = (task, date) => {
     let updated;
     updated = tasks.map((t) =>
@@ -655,136 +242,17 @@ function handlePinInput(n) {
 
   if (!authenticatedUser) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-base-200">
-  <div className="absolute top-4 right-4">
-
-<label className="flex cursor-pointer gap-2">
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round">
-    <circle cx="12" cy="12" r="5" />
-    <path
-      d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" />
-  </svg>
-  <input type="checkbox" data-toggle-theme="light,dark" data-act-class="ACTIVECLASS" className="toggle theme-controller" />
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round">
-    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-  </svg>
-</label>
-
-  </div>
-        <div className="bg-base-100 shadow-xl rounded-lg p-6 w-full max-w-sm select-none">
-          <div className={`transition-all ${loginError ? "shake" : ""}`}>
-            {!selectedUser && <h2 className="text-xl font-semibold mb-4">Please login</h2>}
-            {!selectedUser ? (
-            <div className="menu bg-base-100 rounded-box w-full mb-4">
-              {users.map(user => (
-                <button
-                  key={user.id}
-                  onClick={() => setSelectedUser(user)}
-                  className="menu-item flex items-center gap-3 hover:bg-base-200 px-4 py-3 rounded"
-                >
-                  <img src={user.avatar_link} alt={user.first_name} className="w-24 h-24 rounded-full object-cover" />
-                  <span className="text-lg font-medium">{user.first_name} {user.last_name}</span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="mb-4">
-              <button onClick={() => { setSelectedUser(null); setPin(""); }} className="btn btn-ghost text-base-content mb-2 text-2xl px-3 leading-none">←</button>
-              <div className="flex flex-col items-center mb-4">
-                <img src={selectedUser.avatar_link} alt={selectedUser.first_name} className="w-24 h-24 rounded-full object-cover" />
-                <span className="text-lg font-medium">{selectedUser.first_name} {selectedUser.last_name}</span>
-              </div>
-            </div>
-          )}
-          {selectedUser && (
-            <>
-              <div className="flex justify-center mb-4 gap-2">
-                {[0,1,2,3].map(i => (
-                  <div
-                    key={i}
-                    className={`w-4 h-4 rounded-full border-2 ${i < pin.length ? 'bg-gray-800 border-gray-800' : 'border-gray-400'} transition-all`}
-                  />
-                ))}
-              </div>
-          <div className="grid grid-cols-3 gap-4 mb-6 px-4">
-                {[1,2,3,4,5,6,7,8,9,"",0].map((n, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      if (n !== "") {
-                        setLoginError("");
-                        const newPin = pin + n.toString();
-                        setPin(newPin);
-                        if (newPin.length === 4) {
-                          fetch(`${API_BASE}/verify_pin.php`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ user_id: selectedUser.id, pin: newPin })
-                          })
-                            .then(res => {
-                              if (res.status === 200) return res.json();
-                              if (res.status === 401) throw new Error("unauthorized");
-                              throw new Error("network error");
-                            })
-                            .then(data => {
-                              setAuthenticatedUser(selectedUser);
-                              setSelectedUser(null);
-                              setPin("");
-                              setLoginError("");
-                            })
-                            .catch(err => {
-                              if (err.message === "unauthorized") {
-                                setLoginError("Invalid PIN. Please try again.");
-                                setTimeout(() => setLoginError(""), 3000);
-                                setPin("");
-                              } else {
-                                setLoginError("Something went wrong. Please try again.");
-                                setPin("");
-                              }
-                            });
-                        }
-                      }
-                    }}
-                    className="btn btn-lg btn-soft text-xl font-bold py-5 px-6"
-                    style={n === "" ? { visibility: 'hidden' } : {}}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-              <div className="text-center min-h-[1.5rem]">
-                {loginError && <p className="text-error text-sm">{loginError}</p>}
-              </div>
-              <div className="flex justify-between px-2 text-sm text-base-content mt-0 items-center">
-                <button className="btn btn-ghost btn-xs px-1 text-base-content no-underline" onClick={() => setPin("")}>Clear</button>
-                <button className="btn btn-ghost btn-xs px-1 text-base-content no-underline" onClick={() => setPin(pin.slice(0, -1))}>Delete</button>
-              </div>
-        </>
-        )}
-         </div>
-        </div> 
-      </div>
+      <LoginBox
+        users={users}
+        selectedUser={selectedUser}
+        setSelectedUser={setSelectedUser}
+        loginError={loginError}
+        setLoginError={setLoginError}
+        setAuthenticatedUser={setAuthenticatedUser}
+      />
     );
   }
-
+  
   return (
     <DndContext
       onDragStart={({ active }) => setActiveId(active.id)}
@@ -845,42 +313,57 @@ function handlePinInput(n) {
     </label>
 </div>
 
-{showSuccessAlert && (
+  {successAlertText && (
     <div className="alert alert-success fixed top-2 left-1/2 transform -translate-x-1/2 z-50 w-fit shadow-lg">
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 stroke-current shrink-0" fill="none" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.5 12.75l6 6 9-13.5" />
       </svg>
-      <span>PIN changed successfully</span>
+      <span>{successAlertText}</span>
     </div>
-  )}
-  
+  )} 
+
+  <ChangePinModal
+    open={pinModalOpen}
+    userId={authenticatedUser.id}
+    onClose={() => setPinModalOpen(false)}
+    showAlert={(text) => {
+      setSuccessAlertText(text);
+      setTimeout(() => setSuccessAlertText(""), 3000);
+    }}
+  />
+
+
 <header className="mb-4 flex justify-between items-center">
-  <div className="dropdown dropdown-bottom">
-    <label tabIndex={0} className="btn h-14 min-h-14 btn-ghost rounded-full flex items-center gap-2">
-      <img src={authenticatedUser?.avatar_link} alt="avatar" className="w-12 h-12 rounded-full" />
-      <span className="text-sm font-medium">{authenticatedUser?.first_name} {authenticatedUser?.last_name}</span>
-    </label>
-    <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-40 mt-2">
+  <div className="dropdown dropdown-end">
+    <div
+      tabIndex={0}
+      role="button"
+      className="flex items-center gap-2 px-3 py-1 rounded-full border border-base-300 hover:shadow-md hover:bg-base-200 transition-all cursor-pointer"
+    >
+      <img
+        src={authenticatedUser.avatar_link}
+        alt="avatar"
+        className="w-10 h-10 rounded-full object-cover"
+      />
+      <span className="font-medium text-sm whitespace-nowrap">
+        {authenticatedUser.first_name} {authenticatedUser.last_name}
+      </span>
+    </div>
+
+    <ul
+      tabIndex={0}
+      className="dropdown-content menu menu-sm p-2 shadow bg-base-100 rounded-box w-44 mt-1"
+    >
       <li>
-        <button onClick={() => {
-          document.querySelectorAll("#calendar .calendar-cell").forEach((el) => {
-            el.classList.add("skeleton", "bg-base-300");
-          });
-
-          const dropdown = document.activeElement;
-
-          setTimeout(() => {
-            api.fetchTasks(authenticatedUser.id, format(targetMonth, "yyyy-MM")).then(setTasks);
-            document.querySelectorAll("#calendar .calendar-cell").forEach((el) => {
-              el.classList.remove("skeleton", "bg-base-300");
-            });
-          }, 1000);
-
-          if (dropdown && dropdown.blur) dropdown.blur();
-        }}>Refresh</button>
+        <button onClick={() => location.reload()}>Refresh</button>
       </li>
       <li>
-        <button onClick={() => document.getElementById("change-pin-modal")?.showModal()}>
+        <button
+          onClick={() => {
+            document.activeElement?.blur();
+            setPinModalOpen(true);
+          }}
+        >
           Change PIN
         </button>
       </li>
@@ -926,7 +409,6 @@ function handlePinInput(n) {
                 task={topTask}
                 activeId={activeId}
                 setTasks={setTasks}
-                onMarkIncomplete={handleMarkIncomplete}
               />
             )}
             {group.length > 1 && (
@@ -966,7 +448,7 @@ function handlePinInput(n) {
                         task={topTask}
                         activeId={activeId}
                         setTasks={setTasks}
-                        onMarkIncomplete={handleMarkIncomplete}/>
+                      />
                     ) : (
                       <div className="badge badge-outline badge-sm badge-warning">
                         {topTask.taskName}
@@ -1012,7 +494,6 @@ function handlePinInput(n) {
                   }}
                   targetMonth={targetMonth}
                   tasks={tasks}
-                  onMarkIncomplete={handleMarkIncomplete}
                   handleDrop={handleDrop}
                   setTasks={setTasks}
                 />
@@ -1038,84 +519,6 @@ function handlePinInput(n) {
         ) : null;
       })()}
       </DragOverlay>
-
-      <dialog id="change-pin-modal" className="modal">
-        <div className={`transition-all ${pinError ? "shake" : ""}`}>
-          <div className="modal-box w-full max-w-sm">
-            <button
-              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
-              onClick={() => {
-                document.getElementById("change-pin-modal")?.close();
-                setChangePinStep(1);
-                setCurrentPinEntry("");
-                setNewPinEntry("");
-                setPinError("");
-              }}
-            >
-              <LucideX className="w-4 h-4" />
-            </button>
-
-            <h3 className="font-bold text-lg mb-4">
-              {changePinStep === 1 ? "Verify Current PIN" : "Enter New PIN"}
-            </h3>
-
-            <div className="flex justify-center mb-4 gap-2">
-              {[0, 1, 2, 3].map(i => (
-                <div
-                  key={i}
-                  className={`w-4 h-4 rounded-full border-2 ${
-                    i < (changePinStep === 1 ? currentPinEntry.length : newPinEntry.length)
-                      ? "bg-gray-800 border-gray-800"
-                      : "border-gray-400"
-                  } transition-all`}
-                />
-              ))}
-            </div>
-
-            <div className="grid grid-cols-3 gap-4 mb-6 px-4">
-              {[1,2,3,4,5,6,7,8,9,"",0].map((n, i) => (
-                <button
-                  key={i}
-                  onClick={() => handlePinInput(n)}
-                  className="btn btn-lg btn-soft text-xl font-bold py-5 px-6"
-                  style={n === "" ? { visibility: "hidden" } : {}}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-
-            <div className="text-center min-h-[1.5rem]">
-              {pinError && <p className="text-error text-sm">{pinError}</p>}
-            </div>
-
-            <div className="flex justify-between px-2 text-sm text-base-content mt-0 items-center">
-              <button
-                className="btn btn-ghost btn-xs px-1 text-base-content no-underline"
-                onClick={() =>
-                  changePinStep === 1
-                    ? setCurrentPinEntry("")
-                    : setNewPinEntry("")
-                }
-              >
-                Clear
-              </button>
-              <button
-                className="btn btn-ghost btn-xs px-1 text-base-content no-underline"
-                onClick={() =>
-                  changePinStep === 1
-                    ? setCurrentPinEntry(currentPinEntry.slice(0, -1))
-                    : setNewPinEntry(newPinEntry.slice(0, -1))
-                }
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      </dialog>
-
     </DndContext>
   );
 }
-
