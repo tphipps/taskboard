@@ -6,6 +6,8 @@ import { motion } from "framer-motion"; // if animated
 
 import {Award, CircleX} from "lucide-react";
 
+import { updateTaskCompletion } from "../lib/api";
+
 export default function TaskChip({ task, setTasks }) {
   if (!task?.id) return null;
 
@@ -108,12 +110,12 @@ export default function TaskChip({ task, setTasks }) {
       transition={{ duration: 0.5, ease: 'easeOut' }}
       defaultChecked={isComplete}
       onPointerDown={(!isTodayOrPast) ? (e) => e.stopPropagation():null} // Prevents the checkbox from triggering the drag event
-      disabled={(task.type == 'D') ? !isToday: isTodayOrPast}
-      onChange={(e) => {
+      disabled={(task.type == 'D') ? !isToday : (task.type == 'W') ? parseISO(task.startDate) < weekStart : isTodayOrPast}
+      onChange={(e) => {  
         e.stopPropagation();
         const newCompleted = e.target.checked;
         const completionDate = newCompleted ? new Date() : null;
-        api.updateTaskCompletion(task.id, completionDate);
+        updateTaskCompletion(task.id, completionDate);
         setTasks(prev =>
           prev.map(t =>
             t.id === task.id
