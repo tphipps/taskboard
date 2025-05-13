@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 
 import PinPad from "./PinPad";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+import { verifyPin, changePin } from "../lib/api";
 
 export default function ChangePinModal({ userId, open, onClose, showAlert }) {
   const [changePinStep, setChangePinStep] = useState(1);
@@ -18,11 +18,7 @@ export default function ChangePinModal({ userId, open, onClose, showAlert }) {
       const updated = currentPinEntry + digit;
       setCurrentPinEntry(updated);
       if (updated.length === 4) {
-        fetch(`${API_BASE}/verify_pin.php`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user_id: userId, pin: updated })
-        })
+        verifyPin(userId, updated)
           .then((res) => {
             if (!res.ok) throw new Error();
             setChangePinStep(2);
@@ -37,15 +33,7 @@ export default function ChangePinModal({ userId, open, onClose, showAlert }) {
       const updated = newPinEntry + digit;
       setNewPinEntry(updated);
       if (updated.length === 4) {
-        fetch(`${API_BASE}/change_pin.php`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: userId,
-            current_pin: currentPinEntry,
-            new_pin: updated
-          })
-        })
+        changePin(userId, currentPinEntry, updated)
           .then((res) => {
             if (!res.ok) throw new Error();
             showAlert("PIN changed successfully");

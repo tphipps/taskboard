@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import PinPad from "./PinPad";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+import { verifyPin } from "../lib/api"
 
 export default function LoginBox({
   users,
@@ -49,11 +49,7 @@ export default function LoginBox({
                       const newPin = pin + digit;
                       setPin(newPin);
                       if (newPin.length === 4) {
-                          fetch(`${API_BASE}/verify_pin.php`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ user_id: selectedUser.id, pin: newPin })
-                          })
+                        verifyPin(selectedUser.id, newPin)
                           .then(res => {
                             if (res.status === 200) return res.json();
                             if (res.status === 401) throw new Error("unauthorized");
