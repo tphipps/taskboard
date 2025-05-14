@@ -5,6 +5,8 @@ import { format, parseISO } from "date-fns";
 import PageHeader from "./PageHeader";
 import { getPendingTasks, approveTask, rejectTask } from "../lib/api";
 
+import emptyStateImage from "../assets/images/empty-state.png";
+
 
 export default function TaskApprovalTable({ user, onLogout, onChangePin }) {
   const [tasks, setTasks] = useState([]);
@@ -145,7 +147,7 @@ export default function TaskApprovalTable({ user, onLogout, onChangePin }) {
                             <div className="w-full flex justify-center">
                             <div className="flex flex-col items-center text-center py-10 text-gray-500 text-sm">
                                 <img
-                                src="/images/empty-state.png"
+                                src={emptyStateImage}
                                 alt="No tasks"
                                 style={{ width: "150px", height: "auto" }}
                                 className="mb-4"
