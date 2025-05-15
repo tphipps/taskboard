@@ -68,7 +68,7 @@ switch ($mode) {
     case 'planTask':
       $data = json_decode(file_get_contents('php://input'), true);
       $taskId = $data['taskId'];
-      $completionDate = $data['completionDate']; // ISO 8601 or null
+      $plannedDate = $data['plannedDate']; // ISO 8601 or null
       $stmt = $pdo->prepare("UPDATE tasks SET planned_date = :plannedDate WHERE id = :id");
       $stmt->execute([
         ':plannedDate' => $plannedDate,
