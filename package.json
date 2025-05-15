@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "deploy": "dotenv -e .env.production -- sh -c 'npm run build && scp -r dist/* $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH && scp -r api/* $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/api'"
   },
   "keywords": [],
   "author": "",
@@ -12,6 +13,7 @@
   "description": "",
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
+    "@headlessui/react": "^2.2.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
@@ -27,6 +29,7 @@
     "@vitejs/plugin-react": "^4.4.1",
     "autoprefixer": "^10.4.21",
     "daisyui": "^5.0.35",
+    "dotenv-cli": "^8.0.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.5",
     "tw-animate-css": "^1.2.8",

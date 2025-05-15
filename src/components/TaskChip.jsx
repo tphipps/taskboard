@@ -36,7 +36,7 @@ export default function TaskChip({ task, setTasks }) {
   const { attributes, listeners, setNodeRef, transform } = isDraggable ? draggable : { attributes: {}, listeners: {}, setNodeRef: undefined, transform: null };
   const style = transform ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 50 } : undefined;
   const isComplete = Boolean(task.completionDate);
-  const isTodayOrPast = task.plannedDate ? new Date() < parseISO(task.plannedDate): null;
+  const isTodayOrPast = task.plannedDate ? new Date() >= parseISO(task.plannedDate): null;
   const isReviewed = Boolean(task.reviewedDate);
 
   // For use in Daily tasks only  
@@ -56,7 +56,7 @@ export default function TaskChip({ task, setTasks }) {
         ref={setNodeRef}
         {...listeners}
         {...attributes}
-        className={`badge chip-on-calendar badge-outline badge-sm px-2 py-1 gap-1 ${chipColor}`}
+        className={`chip-on-calendar badge badge-outline badge-sm max-w-[160px] truncate overflow-hidden whitespace-nowrap text-left px-2 py-1 gap-1  ${chipColor}`}
         style={style}
         transition={{ duration: 0.4 }}
       >
@@ -72,7 +72,7 @@ export default function TaskChip({ task, setTasks }) {
     return (
       <div
       key={task.id}
-      className={`badge badge-sm chip-on-calendar ${chipColor}`}
+      className={`chip-on-calendar badge badge-sm max-w-[160px] truncate overflow-hidden whitespace-nowrap text-left px-2 py-1 gap-1 ${chipColor}`}
       >
         <Award height="20" width="20" fill="goldenrod" />
         {task.taskName}
@@ -80,16 +80,66 @@ export default function TaskChip({ task, setTasks }) {
     );
   }
   // Build a chip that has been missed
-  if ((task.type == "D" && !isToday && isTodayOrPast && !isComplete) || (task.type == "W" && !isComplete && parseISO(task.startDate) < weekStart)) {
+  if ((task.type == "D" && !isToday && isTodayOrPast && !isComplete) 
+    || (task.type == "W" && !isComplete && parseISO(task.startDate) < weekStart)) {
     return (
     <label
       key={task.id}
-      className={`chip-on-calendar badge badge-outline badge-sm ${chipColor}`}
+      className={`chip-on-calendar badge badge-outline badge-sm max-w-[160px] truncate overflow-hidden whitespace-nowrap text-left px-2 py-1 gap-1 ${chipColor}`}
     >
       <CircleX size={16} />
       {task.taskName}
     </label>
     );
+  }
+
+  // Only include a checkbox if the task is:
+  // - Daily and today
+  // - Weekly and within the current week (previous weeks will already be rendered as missed)
+  // - Monthly and within the current month and PRIOR to today
+ 
+  const checkbox = <motion.input
+                  type="checkbox"
+                  className="checkbox checkbox-xs"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                  defaultChecked={isComplete}
+                  disabled={false}
+                  onPointerDown={(e) => e.stopPropagation()} // Prevents the checkbox from triggering the drag event
+                  onChange={(e) => {  
+                    e.stopPropagation();
+                    const newCompleted = e.target.checked;
+                    const completionDate = newCompleted ? new Date() : null;
+                    updateTaskCompletion(task.id, completionDate);
+                    setTasks(prev =>
+                      prev.map(t =>
+                        t.id === task.id
+                          ? { ...t, completionDate: completionDate ? completionDate.toISOString() : null }
+                          : t
+                      )
+                    );
+                  }}
+                />
+
+  let renderCheckbox = null;
+
+  switch(task.type)
+  {
+    case "D":
+      if (isToday) 
+        renderCheckbox = checkbox;
+      break;
+    case "W":
+      if ((parseISO(task.startDate) >= weekStart && parseISO(task.startDate) <= weekEnd) &&
+        (parseISO(task.plannedDate) <= today))
+          renderCheckbox = checkbox;
+      break;
+    default: // "M"
+      if ((parseISO(task.startDate).getMonth() === new Date().getMonth() && parseISO(task.startDate) < new Date()) &&
+       (parseISO(task.plannedDate) <= today))
+        renderCheckbox = checkbox;
+      break;
   }
 
   // Build a chip that's on the calendar
@@ -98,33 +148,11 @@ export default function TaskChip({ task, setTasks }) {
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`chip-on-calendar badge badge-outline badge-sm px-2 py-1 gap-1 ${chipColor}`}
+      className={`chip-on-calendar badge badge-outline badge-sm max-w-[160px] truncate overflow-hidden whitespace-nowrap text-left px-2 py-1 gap-1 ${chipColor}`}
       style={style}
       transition={{ duration: 0.4 }}
     >
-    <motion.input
-      type="checkbox"
-      className="checkbox checkbox-xs"
-      initial={{ scale: 0 }}
-      animate={{ scale: 1 }}
-      transition={{ duration: 0.5, ease: 'easeOut' }}
-      defaultChecked={isComplete}
-      onPointerDown={(!isTodayOrPast) ? (e) => e.stopPropagation():null} // Prevents the checkbox from triggering the drag event
-      disabled={(task.type == 'D') ? !isToday : (task.type == 'W') ? parseISO(task.startDate) < weekStart : isTodayOrPast}
-      onChange={(e) => {  
-        e.stopPropagation();
-        const newCompleted = e.target.checked;
-        const completionDate = newCompleted ? new Date() : null;
-        updateTaskCompletion(task.id, completionDate);
-        setTasks(prev =>
-          prev.map(t =>
-            t.id === task.id
-              ? { ...t, completionDate: completionDate ? completionDate.toISOString() : null }
-              : t
-          )
-        );
-      }}
-    />
+      {renderCheckbox}
       {task.taskName}
     </motion.div>
   );
