@@ -49,7 +49,7 @@ export async function verifyPin(userId, pin) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: userId, pin: pin })
     });
-    return res; // Returning the object not the JSON
+    return res; // Returning the object not the object.json()
   }
 
   export async function changePin(userId, currentPin, newPin) {
@@ -58,7 +58,7 @@ export async function verifyPin(userId, pin) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: userId, current_pin: currentPin, new_pin: newPin })
     });
-    return res.json();
+    return res; // Returning the object not the object.json()
   }
 
 // These APIs are Used by TaskApproval Table
