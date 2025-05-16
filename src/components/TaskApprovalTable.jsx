@@ -8,7 +8,7 @@ import { getPendingTasks, approveTask, rejectTask } from "../lib/api";
 import emptyStateImage from "../assets/images/empty-state.png";
 
 
-export default function TaskApprovalTable({ user, onLogout, onChangePin }) {
+export default function TaskApprovalTable({ user, onLogout }) {
   const [tasks, setTasks] = useState([]);
   const [approvalStatus, setApprovalStatus] = useState({});
  
@@ -80,7 +80,6 @@ export default function TaskApprovalTable({ user, onLogout, onChangePin }) {
         pageTitle="Task Approval"
         user={user}
         onLogout={onLogout}
-        onChangePin={onChangePin}
         onRefresh={getTasks}
     />
 

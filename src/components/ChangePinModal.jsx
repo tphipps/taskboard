@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
 
 import PinPad from "./PinPad";
@@ -33,6 +33,7 @@ export default function ChangePinModal({ userId, open, onClose, showAlert }) {
       const updated = newPinEntry + digit;
       setNewPinEntry(updated);
       if (updated.length === 4) {
+
         changePin(userId, currentPinEntry, updated)
           .then((res) => {
             if (!res.ok) throw new Error();
@@ -41,7 +42,7 @@ export default function ChangePinModal({ userId, open, onClose, showAlert }) {
           })
           .catch(() => {
             setPinError("Failed to change PIN");
-            setTimeout(() => setPinError(""), 500);
+            setTimeout(() => setPinError(""), 3000);
             setNewPinEntry("");
           });
       }
