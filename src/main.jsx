@@ -57,7 +57,7 @@ const AppRoutes = () => {
 
 const App = () => {
   return (
-    <Router>
+    <Router basename="/tb">
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>
