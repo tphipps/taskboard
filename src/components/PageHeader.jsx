@@ -5,6 +5,8 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Check} from "lucide-react";
 
+import { logout } from "../lib/api";
+
 import themeDarkIcon from "../assets/icons/theme-dark.svg";
 import themeLightIcon from "../assets/icons/theme-light.svg";
 
@@ -38,12 +40,24 @@ const LogoutButton = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    logout()
+    .then(res => {
+        switch (res.status)
+        {
+            case 200:
+                setAuthenticatedUser(null);
+                navigate("/login");
+                return;
+                break;
+            default:
+                throw new Error("network error");
+        }
+    })
     setAuthenticatedUser(null);
     navigate("/login");
   };
-
-    return <button onClick={handleLogout}>Logout</button>;
-};
+   return <button onClick={handleLogout}>Logout</button>;
+}
 
   return (
         <div className="flex items-center justify-between mb-4 relative">
