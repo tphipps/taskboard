@@ -28,7 +28,7 @@ switch ($mode) {
       $stmt = $pdo->prepare("SELECT id, first_name, last_name, avatar_link, role FROM users WHERE id  = ? AND pin = ?");
       $stmt->execute([$userId, $pin]);
       if($users = $stmt->fetchAll(PDO::FETCH_ASSOC))
-        echo json_encode($users);
+        echo json_encode($users[0]);
       else
         http_response_code(401);
       break;

@@ -1,11 +1,18 @@
 import { useEffect, useState } from "react";
 import { themeChange } from 'theme-change';
 import ChangePinModal from "./ChangePinModal";
+import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { Check} from "lucide-react";
 
-export default function PageHeader({ pageTitle, user, onLogout, onRefresh }) {
+import themeDarkIcon from "../assets/icons/theme-dark.svg";
+import themeLightIcon from "../assets/icons/theme-light.svg";
+
+export default function PageHeader({ pageTitle, onRefresh }) {
 const [pinModalOpen, setPinModalOpen] = useState(false);
 const [successAlertText, setSuccessAlertText] = useState("");
 
+const { authenticatedUser, setAuthenticatedUser } = useAuth();
 
 useEffect(() => {
     themeChange();
@@ -26,24 +33,33 @@ useEffect(() => {
     return () => observer.disconnect();
 }, []);
 
+const LogoutButton = () => {
+  const { setAuthenticatedUser } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    setAuthenticatedUser(null);
+    navigate("/login");
+  };
+
+    return <button onClick={handleLogout}>Logout</button>;
+};
 
   return (
         <div className="flex items-center justify-between mb-4 relative">
 
             {successAlertText && (
             <div className="alert alert-success fixed top-2 left-1/2 transform -translate-x-1/2 z-50 w-fit shadow-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 stroke-current shrink-0" fill="none" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.5 12.75l6 6 9-13.5" />
-                </svg>
+                <Check />
                 <span>{successAlertText}</span>
             </div>
             )} 
             
             <div className="absolute top-4 right-4">
                 <label className="flex cursor-pointer gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"></path></svg>
+                    <img src={themeLightIcon} />
                     <input type="checkbox" data-toggle-theme="light,dark" data-act-class="ACTIVECLASS" className="toggle theme-controller" />
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    <img src={themeDarkIcon} />
                 </label>
             </div>
 
@@ -56,12 +72,12 @@ useEffect(() => {
                     className="flex items-center gap-2 px-3 py-1 rounded-full border border-base-300 hover:shadow-md hover:bg-base-200 transition-all cursor-pointer"
                     >
                     <img
-                        src={user.avatar_link}
+                        src={authenticatedUser.avatar_link}
                         alt="avatar"
                         className="w-10 h-10 rounded-full object-cover"
                     />
                     <span className="font-medium text-sm whitespace-nowrap">
-                        {user.first_name} <br /> {user.last_name}
+                        {authenticatedUser.first_name} <br /> {authenticatedUser.last_name}
                     </span>
                     </div>
 
@@ -90,7 +106,7 @@ useEffect(() => {
                         </button>
                     </li>
                     <li>
-                        <button onClick={onLogout}>Logout</button>
+                        <LogoutButton />
                     </li>
                     </ul>
                 </div>
@@ -103,7 +119,7 @@ useEffect(() => {
 
             <ChangePinModal
                 open={pinModalOpen}
-                userId={user.id}
+                userId={authenticatedUser.id}
                 onClose={() => setPinModalOpen(false)}
                 showAlert={(text) => {
                 setSuccessAlertText(text);

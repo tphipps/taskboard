@@ -3,18 +3,16 @@ import { Card, CardContent } from "@/components/ui/card";
 
 import { Transition } from '@headlessui/react';
 
-import PageHeader from "./components/PageHeader";
-import TaskChip from "./components/TaskChip";
-import LoginBox from "./components/LoginBox";
-import TaskApprovalTable from "./components/TaskApprovalTable";
-import DroppableDay from "./components/DroppableDay";
+import PageHeader from "./PageHeader";
+import TaskChip from "./TaskChip";
+import DroppableDay from "./DroppableDay";
 
 import { updateTaskPlannedDate, 
-         fetchTasks, 
-         fetchUsers} from "./lib/api";
+         fetchTasks } from "../lib/api";
 
-import { isDropAllowed } from "./lib/droppable";
-
+import { isDropAllowed } from "../lib/droppable";
+import { useAuth } from "../context/AuthContext";
+  
 import {
   format,
   startOfMonth,
@@ -31,11 +29,9 @@ import {
 import { MoveLeft, MoveRight } from "lucide-react";
 
 export default function TaskBoard() {
-  const [users, setUsers] = useState([]);
-  const [authenticatedUser, setAuthenticatedUser] = useState(null);
-  const [selectedUser, setSelectedUser] = useState(null);
   
-  const [loginError, setLoginError] = useState("");
+  const { authenticatedUser } = useAuth();
+
   const [targetMonth, setTargetMonth] = useState(startOfMonth(new Date()));
 
   const [tasks, setTasks] = useState([]);
@@ -69,17 +65,11 @@ export default function TaskBoard() {
       });
     }, 1000);
   }
-  
-  useEffect(() => {
-    fetchUsers().then(setUsers).catch(console.error);
-  }, []);
 
   const monthlyTasks = tasks.filter((t) => t.type === "M" && !t.completionDate);
 
   useEffect(() => {
-      if(authenticatedUser && authenticatedUser.role !== "P") {
         fetchTasks(authenticatedUser.id, format(targetMonth, "yyyy-MM")).then(setTasks);
-      }
   }, [authenticatedUser, targetMonth]);  
 
   const daysInMonth = [];
@@ -110,29 +100,7 @@ export default function TaskBoard() {
     setTasks(updated);
   };
 
-  const draggedTask = tasks.find((t) => String(t.id) === String(activeId) && !t.plannedDate);
-
-  if (!authenticatedUser) {
-    return (
-      <LoginBox
-        users={users}
-        selectedUser={selectedUser}
-        setSelectedUser={setSelectedUser}
-        loginError={loginError}
-        setLoginError={setLoginError}
-        setAuthenticatedUser={setAuthenticatedUser}
-      />
-    );
-  }
-
-  if(authenticatedUser.role === "P") {
-    return (
-      <TaskApprovalTable
-      onLogout={() => setAuthenticatedUser(null)}
-      user={authenticatedUser}
-    />
-    );
-  }
+  const draggedTask = tasks.find((t) => String(t.id) === String(activeId));
 
   return (
     <DndContext
@@ -166,8 +134,6 @@ export default function TaskBoard() {
 
     <PageHeader
       pageTitle="GANT Task Board"
-      user={authenticatedUser}
-      onLogout={() => setAuthenticatedUser(null)}
       onRefresh={reloadTasks}
     />   
 
@@ -184,9 +150,6 @@ export default function TaskBoard() {
             <MoveRight className="w-5 h-5" />
           </button>
         </div>
-
-
-        
 
               <Transition
                 show={(monthlyTasks.filter(task => !task.plannedDate).length) > 0}
@@ -209,27 +172,28 @@ export default function TaskBoard() {
                     }, {})
                   ).map(([taskName, group]) => {  
                   const topTask = group[0];
-                  const isGhost = String(topTask.id) === activeId;
+                const isGhost = String(topTask.id) === activeId;
                   const badgeCount = (isGhost ? group.length-1 : group.length);
 
-                  return (
-                    <div key={topTask.id} className="relative inline-block">
-                      {isGhost ? (
-                        <div className={`badge chip-on-calendar badge-sm ${group.length === 1 ? 'badge-dash badge-secondary':'badge-outline badge-secondary'}`}>{topTask.taskName}</div>
-                      ) : (
-                        <TaskChip
-                          task={topTask}
-                          activeId={activeId}
-                          setTasks={setTasks}
-                        />
-                      )}
-                      {group.length > 1 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                          {badgeCount}
-                        </span>
-                      )}
-                    </div>
-                  )
+                return (
+                  <div key={topTask.id} className="relative inline-block">
+                    {!isGhost && (
+                      <TaskChip
+                        task={topTask}
+                        activeId={activeId}
+                        setTasks={setTasks}
+                      />
+                    )}
+                    {isGhost && (
+                      <div className={`badge chip-on-calendar badge-sm ${group.length === 1 ? 'badge-dash badge-secondary':'badge-outline badge-secondary'}`}>{topTask.taskName}</div>
+                    )}
+                    {group.length > 1 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                        {badgeCount}
+                      </span>
+                    )}
+                  </div>
+                )
                   })} 
                 </div>
               </div>
@@ -242,7 +206,6 @@ export default function TaskBoard() {
   const weekEnd = format(week[6], "MMM d");
   const unallocatedWeeklyTasks = weeklyTasksByWeek[index];
   const hasUnallocated = unallocatedWeeklyTasks.length > 0;
-
 
   return (
     <Card key={index} style={{ paddingTop: 0 }} className={`mb-4 overflow-hidden border border-gray-300 ${isCurrentWeek ? 'ring-2 ring-yellow-300' : ''}`}>
@@ -339,14 +302,16 @@ export default function TaskBoard() {
      </Card>
       </div>
       <DragOverlay>
-        {draggedTask && (
-          <TaskChip
-            task={draggedTask}
-            activeId={activeId}
-            setTasks={setTasks}
-            onMarkIncomplete={() => {}}
-          />
-        )}
+        <div className="z-50 relative">
+          {draggedTask && (
+            <TaskChip
+              task={draggedTask}
+              activeId={activeId}
+              setTasks={setTasks}
+              onMarkIncomplete={() => {}}
+            />
+          )}
+        </div>
       </DragOverlay>
     </DndContext>
   );

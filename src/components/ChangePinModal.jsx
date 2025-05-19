@@ -44,7 +44,7 @@ export default function ChangePinModal({ userId, open, onClose, showAlert }) {
             setPinError("Failed to change PIN");
             setTimeout(() => setPinError(""), 3000);
             setNewPinEntry("");
-          });
+          }); 
       }
     }
   };

@@ -6,12 +6,14 @@ import PageHeader from "./PageHeader";
 import { getPendingTasks, approveTask, rejectTask } from "../lib/api";
 
 import emptyStateImage from "../assets/images/empty-state.png";
+import { useAuth } from "../context/AuthContext";
 
-
-export default function TaskApprovalTable({ user, onLogout }) {
+export default function TaskApprovalTable({ }) {
   const [tasks, setTasks] = useState([]);
   const [approvalStatus, setApprovalStatus] = useState({});
  
+  const { authenticatedUser } = useAuth();
+  
   // getTasks must be declared before useEffect references it.
   // In JavaScript, functions declared with const are not hoisted, 
   // so if declared after useEffect, then useEffect sees loadTasks
@@ -27,7 +29,7 @@ export default function TaskApprovalTable({ user, onLogout }) {
   const handleApprove = async (taskId) => {
     setApprovalStatus((prev) => ({ ...prev, [taskId]: "loading" }));
     try {
-      await approveTask(taskId, user.id);
+      await approveTask(taskId, authenticatedUser.id);
       setApprovalStatus((prev) => ({ ...prev, [taskId]: "approved" }));
     } catch (err) {
       console.error(err);
@@ -39,7 +41,7 @@ export default function TaskApprovalTable({ user, onLogout }) {
   const handleReject = async (taskId) => {
     setApprovalStatus((prev) => ({ ...prev, [taskId]: "loading" }));
     try {
-      await rejectTask(taskId, user.id);
+      await rejectTask(taskId, authenticatedUser.id);
       setApprovalStatus((prev) => ({ ...prev, [taskId]: "rejected" }));
     } catch (err) {
       console.error(err);
@@ -78,8 +80,6 @@ export default function TaskApprovalTable({ user, onLogout }) {
 
     <PageHeader
         pageTitle="Task Approval"
-        user={user}
-        onLogout={onLogout}
         onRefresh={getTasks}
     />
 
