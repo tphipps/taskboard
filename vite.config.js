@@ -11,6 +11,13 @@ export default defineConfig(({ mode }) => ({
     },
   },
   server: {
+    proxy: {
+      '/api': {
+        target: 'https://tb-dev.redhill.atsui.com/taskboard-dev',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
     host: '0.0.0.0',     // allows access from your LAN (e.g. 172.16.5.x)
     allowedHosts: true,
     port: 3000,

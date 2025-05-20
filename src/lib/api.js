@@ -4,6 +4,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL;
 export async function updateTaskPlannedDate(taskId, date) {
     await fetch(`${API_BASE}/api.php?mode=planTask`, {
       method: "POST",
+      credentials: 'include', // Important for sending cookies
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         taskId,
@@ -13,7 +14,11 @@ export async function updateTaskPlannedDate(taskId, date) {
   }
 
  export async function fetchTasks(childId, month) {
-    const res = await fetch(`${API_BASE}/api.php?mode=getTasks&assignee=${encodeURIComponent(childId)}&month=${encodeURIComponent(month)}`);
+    const res = await fetch(`${API_BASE}/api.php?mode=getTasks&assignee=${encodeURIComponent(childId)}&month=${encodeURIComponent(month)}`,{
+      method: "GET",
+      credentials: 'include', // Important for sending cookies
+      headers: { "Content-Type": "application/json" }
+    });
     if (!res.ok) throw new Error("Failed to fetch tasks");
     const data = await res.json();
     return data.map((t) => ({
@@ -29,6 +34,7 @@ export async function updateTaskPlannedDate(taskId, date) {
   export async function updateTaskCompletion(taskId, date) {
       await fetch(`${API_BASE}/api.php?mode=completeTask`, {
         method: "POST",
+        credentials: 'include', // Important for sending cookies
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           taskId,
@@ -37,6 +43,7 @@ export async function updateTaskPlannedDate(taskId, date) {
       });
     }
 
+// These APIs are used by LoginBox and related authentication code
 export async function fetchUsers() {
     const res = await fetch(`${API_BASE}/api.php?mode=getUsers`);
     if (!res.ok) throw new Error("Failed to load users");
@@ -46,24 +53,39 @@ export async function fetchUsers() {
 export async function verifyPin(userId, pin) {
     const res = await fetch(`${API_BASE}/api.php?mode=verifyPin`, {
       method: "POST",
+      credentials: 'include', // Important for sending cookies
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: userId, pin: pin })
     });
-    return res; // Returning the object not the object.json()
+    return res; // Returning the object *not object.json()* so the HTTP status can be checked
   }
 
   export async function changePin(userId, currentPin, newPin) {
     const res = await fetch(`${API_BASE}/api.php?mode=changePin`, {
       method: "POST",
+      credentials: 'include', // Important for sending cookies  
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: userId, current_pin: currentPin, new_pin: newPin })
     });
-    return res; // Returning the object not the object.json()
+    return res; // Returning the object *not object.json()* so the HTTP status can be checked
+  }
+
+  export async function logout() {
+    const res = await fetch(`${API_BASE}/api.php?mode=logout`, {
+      method: "GET",
+      credentials: 'include', // Important for sending cookies
+      headers: { "Content-Type": "application/json" }
+    });
+    return res; // Returning the object *not object.json()* so the HTTP status can be checked
   }
 
 // These APIs are Used by TaskApproval Table
 export async function getPendingTasks() {
-  const res = await fetch(`${API_BASE}/api.php?mode=getTasksPendingReview`);
+  const res = await fetch(`${API_BASE}/api.php?mode=getTasksPendingReview`, {
+    method: "GET",
+    credentials: 'include', // Important for sending cookies
+    headers: { "Content-Type": "application/json" }
+  });
   if (!res.ok) throw new Error("Failed to load tasks");
   return res.json();
 }
@@ -71,6 +93,7 @@ export async function getPendingTasks() {
 export async function approveTask(taskId, reviewerId) {
   const res = await fetch(`${API_BASE}/api.php?mode=approveTask`, {
     method: "POST",
+    credentials: 'include', // Important for sending cookies
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ task_id: taskId, reviewer_id: reviewerId })
   });
@@ -80,6 +103,7 @@ export async function approveTask(taskId, reviewerId) {
 export async function rejectTask(taskId) {
   const res = await fetch(`${API_BASE}/api.php?mode=rejectTask`, {
     method: "POST",
+    credentials: 'include', // Important for sending cookies
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ task_id: taskId })
   });

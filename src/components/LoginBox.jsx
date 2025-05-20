@@ -3,16 +3,19 @@ import PinPad from "./PinPad";
 
 import { verifyPin } from "../lib/api"
 
-export default function LoginBox({
-  users,
-  selectedUser,
-  setSelectedUser,
-  loginError,
-  setLoginError,
-  setAuthenticatedUser
-}) {
+import { fetchUsers } from "../lib/api";
 
+export default function LoginBox({ onLogin }) {
+
+  const [users, setUsers] = useState([]);
+  const [loginError, setLoginError] = useState("");
+  const [selectedUser, setSelectedUser] = useState(null);
   const [pin, setPin] = useState("");
+
+  useEffect(() => {
+    fetchUsers().then(setUsers).catch(console.error);
+  }, []);
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-base-200">
@@ -51,12 +54,18 @@ export default function LoginBox({
                       if (newPin.length === 4) {
                         verifyPin(selectedUser.id, newPin)
                           .then(res => {
-                            if (res.status === 200) return res.json();
-                            if (res.status === 401) throw new Error("unauthorized");
-                            throw new Error("network error");
+                            switch (res.status)
+                            {
+                              case 200:
+                                return(res.json());
+                              case 401:
+                                throw new Error("unauthorized");
+                              default:
+                                throw new Error("network error");
+                            }
                           })
                           .then(data => {
-                            setAuthenticatedUser(selectedUser);
+                            onLogin(data);
                             setSelectedUser(null);
                             setPin("");
                             setLoginError("");

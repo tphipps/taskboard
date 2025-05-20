@@ -1,12 +1,139 @@
-import './index.css';
+// main.jsx (App logic using AuthProvider with login timeout)
 
-import React from "react";
+import "./index.css";
+
+import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
-import TaskBoard from "./TaskBoard";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+} from "react-router-dom";
+
+import LoginBox from "./components/LoginBox";
+import TaskBoard from "./components/TaskBoard";
+import TaskApprovalTable from "./components/TaskApprovalTable";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import SessionTimeoutModal from "./components/SessionTimeoutModal";
+
+import { logout } from "./lib/api";
+
+const AppRoutes = () => {
+  const { authenticatedUser, setAuthenticatedUser } = useAuth();
+  const navigate = useNavigate();
+
+  const [showTimeoutModal, setShowTimeoutModal] = useState(false);
+  const countdownRef = useRef(null);
+  const timeoutRef = useRef(null);
+
+  const resetTimer = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (countdownRef.current) clearTimeout(countdownRef.current);
+    timeoutRef.current = setTimeout(() => setShowTimeoutModal(true), 5 * 60 * 1000); // 5 min idle timeout
+  };
+
+  const handleActivity = () => {
+    if (authenticatedUser && !showTimeoutModal) resetTimer();
+  };
+
+  const handleRemainLoggedIn = () => {
+    setShowTimeoutModal(false);
+    resetTimer();
+  };
+
+  const handleLogout = async () => {
+    try {
+      const res = await logout();
+      if (res.status === 200) {
+        setAuthenticatedUser(null);
+        navigate("/login");
+      } else {
+        throw new Error("network error");
+      }
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (authenticatedUser === null) return;
+    window.addEventListener("mousemove", handleActivity);
+    window.addEventListener("keydown", handleActivity);
+    resetTimer();
+    return () => {
+      window.removeEventListener("mousemove", handleActivity);
+      window.removeEventListener("keydown", handleActivity);
+      clearTimeout(timeoutRef.current);
+      clearTimeout(countdownRef.current);
+    };
+  }, [authenticatedUser, showTimeoutModal]);
+
+  if (authenticatedUser === undefined) return null; // optional loading fallback
+
+  return (
+    <>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            authenticatedUser ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <LoginBox
+              onLogin={(user) => {
+                setAuthenticatedUser(user);
+                resetTimer();
+                navigate("/dashboard");
+              }}
+            />
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            authenticatedUser ? (
+              authenticatedUser.role === "P" ? (
+                <TaskApprovalTable />
+              ) : (
+                <TaskBoard />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+      </Routes>
+      {authenticatedUser && showTimeoutModal && (
+        <SessionTimeoutModal
+          onConfirm={handleRemainLoggedIn}
+          onTimeout={handleLogout}
+        />
+      )}
+    </>
+  );
+};
+
+const App = () => {
+  return (
+    <Router basename="/tb">
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </Router>
+  );
+};
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <TaskBoard />
+    <App />
   </React.StrictMode>
 );
-

@@ -50,27 +50,29 @@ export default function DroppableDay({ date, onDrop, tasks, activeId, handleDrop
         {tasks
           .filter((t) => t.type === "D" && parseISO(t.startDate).toDateString() === date.toDateString())
           .map((task) => {   
-            return (
+            const isGhost = String(task.id) === activeId;
+            return (!isGhost && (
               <TaskChip
                 key={task.id}
                 task={task}
                 activeId={activeId}
                 setTasks={setTasks}
               />
-            );
+            ));
           })}
 
         {tasks
           .filter((t) => (t.type === "W" || t.type === "M") && t.plannedDate && isSameDay(parseISO(t.plannedDate), date))
           .map((task) => {
-            return (
+            const isGhost = String(task.id) === activeId;
+            return (!isGhost && (
               <TaskChip
                 key={task.id}
                 task={task}
                 activeId={activeId}
                 setTasks={setTasks}
               />
-            );
+            ));
           })}
       </div>
     </div>
