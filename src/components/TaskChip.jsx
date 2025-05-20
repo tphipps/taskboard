@@ -4,7 +4,7 @@ import { parseISO, startOfWeek, addDays} from "date-fns";
 import { useDraggable } from "@dnd-kit/core";
 import { motion } from "framer-motion"; // if animated
 
-import {Award, CircleX} from "lucide-react";
+import {Award, CircleX, UserRound} from "lucide-react";
 
 import { updateTaskCompletion } from "../lib/api";
 
@@ -79,15 +79,15 @@ export default function TaskChip({ task, setTasks }) {
       </div>
     );
   }
-  // Build a chip that has been missed
-  if ((task.type == "D" && !isToday && isTodayOrPast && !isComplete) 
-    || (task.type == "W" && !isComplete && parseISO(task.startDate) < weekStart)) {
+  // Build a chip that has been missed or is pending review
+  if ((task.type == "D" && !isToday && isTodayOrPast ) 
+    || (task.type == "W" && parseISO(task.startDate) < weekStart)) {
     return (
     <label
       key={task.id}
       className={`chip-on-calendar badge badge-outline badge-sm max-w-[160px] truncate overflow-hidden whitespace-nowrap text-left px-2 py-1 gap-1 ${chipColor}`}
     >
-      <CircleX size={16} />
+      {isComplete ? <UserRound size={16} /> :  <CircleX size={16} />}
       {task.taskName}
     </label>
     );
