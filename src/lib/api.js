@@ -27,7 +27,10 @@ export async function updateTaskPlannedDate(taskId, date) {
       startDate: t.start_date,
       completionDate: t.completion_date,
       reviewedDate: t.reviewed_date,
-      plannedDate: t.planned_date, 
+      plannedDate: t.planned_date,
+      monetaryValue: t.monetary_value,
+      reviewerName: t.reviewer_first_name + ' ' + t.reviewer_last_name,
+      reviewedDate: t.reviewed_date
     }));
   }
 

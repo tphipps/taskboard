@@ -12,6 +12,7 @@ import { updateTaskPlannedDate,
 
 import { isDropAllowed } from "../lib/droppable";
 import { useAuth } from "../context/AuthContext";
+import { DragProvider } from "../context/DragContext";
   
 import {
   format,
@@ -129,190 +130,193 @@ export default function TaskBoard() {
       }}
 
     >
+      <DragProvider>
 
-    <div className="p-4 max-w-screen-xlg mx-auto bg-base-300 min-h-screen select-none">
+      <div className="p-4 max-w-screen-xlg mx-auto bg-base-300 min-h-screen select-none">
 
-    <PageHeader
-      pageTitle="GANT Task Board"
-      onRefresh={reloadTasks}
-    />   
+      <PageHeader
+        pageTitle="GANT Task Board"
+        onRefresh={reloadTasks}
+      />   
 
-    <Card id="calendar" className="mb-4 border-none bg-base-200">
-      <CardContent>
-        <div className="flex items-center justify-center gap-4 mb-4">
-          <button onClick={goToPreviousMonth} className="btn btn-sm btn-circle btn-ghost">
-            <MoveLeft className="w-5 h-5" />
-          </button>
-          <h2 className="text-xl font-semibold">
-            {format(targetMonth, "MMMM yyyy")}
-          </h2>
-          <button onClick={goToNextMonth} className="btn btn-sm btn-circle btn-ghost">
-            <MoveRight className="w-5 h-5" />
-          </button>
-        </div>
-
-              <Transition
-                show={(monthlyTasks.filter(task => !task.plannedDate).length) > 0}
-                enter="transition-opacity duration-300 ease-in-out"
-                enterFrom="opacity-0"
-                enterTo="opacity-100"
-                leave="transition-opacity duration-300 ease-in-out"
-                leaveFrom="opacity-100"
-                leaveTo="opacity-0"
-                as="div"
-              >
-              <div className="bg-gray-950 text-white text-sm mt-2 px-3 py-2 rounded">
-                <h4 className="text-sm font-medium">Monthly tasks to plan</h4>
-                <div className="flex flex-wrap gap-2 mt-1 task-return-area-M">
-                  {Object.entries(
-                    monthlyTasks.reduce((groups, task) => {
-                      if (task.plannedDate) return groups; // prevent duplication if already scheduled
-                      (groups[task.taskName] = groups[task.taskName] || []).push(task);
-                      return groups;
-                    }, {})
-                  ).map(([taskName, group]) => {  
-                  const topTask = group[0];
-                const isGhost = String(topTask.id) === activeId;
-                  const badgeCount = (isGhost ? group.length-1 : group.length);
-
-                return (
-                  <div key={topTask.id} className="relative inline-block">
-                    {!isGhost && (
-                      <TaskChip
-                        task={topTask}
-                        activeId={activeId}
-                        setTasks={setTasks}
-                      />
-                    )}
-                    {isGhost && (
-                      <div className={`badge chip-on-calendar badge-sm ${group.length === 1 ? 'badge-dash badge-secondary':'badge-outline badge-secondary'}`}>{topTask.taskName}</div>
-                    )}
-                    {group.length > 1 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                        {badgeCount}
-                      </span>
-                    )}
-                  </div>
-                )
-                  })} 
-                </div>
-              </div>
-              <div class="divider"></div>
-            </Transition>
-
-  {daysInMonth.map((week, index) => {
-  const isCurrentWeek = week.some(day => isSameDay(startOfWeek(new Date(), { weekStartsOn: 1 }), startOfWeek(day, { weekStartsOn: 1 })));
-  const weekStart = format(week[0], "MMM d");
-  const weekEnd = format(week[6], "MMM d");
-  const unallocatedWeeklyTasks = weeklyTasksByWeek[index];
-  const hasUnallocated = unallocatedWeeklyTasks.length > 0;
-
-  return (
-    <Card key={index} style={{ paddingTop: 0 }} className={`mb-4 overflow-hidden border border-gray-300 ${isCurrentWeek ? 'ring-2 ring-yellow-300' : ''}`}>
-      <div className="bg-gray-800 text-white px-4 pt-3 pb-2">
-        <h3 className="text-lg font-semibold">Week of {weekStart} - {weekEnd}</h3>
-        
-        <Transition
-          show={hasUnallocated}
-          enter="transition-opacity duration-300 ease-in-out"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="transition-opacity duration-300 ease-in-out"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div className="bg-gray-950 text-sm mt-2 px-3 py-2 rounded">
-            <h4 className="text-sm font-medium">Weekly tasks to plan</h4>
-            <div className="flex flex-wrap gap-2 mt-1 task-return-area-W">
-              {Object.entries(
-                unallocatedWeeklyTasks.reduce((groups, task) => {
-                  (groups[task.taskName] = groups[task.taskName] || []).push(task);
-                  return groups;
-                }, {})
-              ).map(([taskName, group]) => {
-                const topTask = group[0];
-                const isGhost = String(topTask.id) === activeId;
-                const badgeCount = (isGhost ? group.length - 1 : group.length);
-                const isSingularGhost = (isGhost && group.length === 1);
-
-                if (isSingularGhost)
-                  return (<div className='chip-on-calendar badge badge-outline badge-sm badge-dash badge-warning'>{topTask.taskName}</div>);
-
-                return (
-                  <div key={topTask.id} className="relative inline-block">
-                    {!isGhost ? (
-                      <TaskChip task={topTask} activeId={activeId} setTasks={setTasks} taskCompletion />
-                    ) : (
-                      <div className="badge chip-on-calendar badge-outline badge-sm badge-warning">{topTask.taskName}</div>
-                    )}
-                    {group.length > 1 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                        {badgeCount}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+      <Card id="calendar" className="mb-4 border-none bg-base-200">
+        <CardContent>
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <button onClick={goToPreviousMonth} className="btn btn-sm btn-circle btn-ghost">
+              <MoveLeft className="w-5 h-5" />
+            </button>
+            <h2 className="text-xl font-semibold">
+              {format(targetMonth, "MMMM yyyy")}
+            </h2>
+            <button onClick={goToNextMonth} className="btn btn-sm btn-circle btn-ghost">
+              <MoveRight className="w-5 h-5" />
+            </button>
           </div>
+
+                <Transition
+                  show={(monthlyTasks.filter(task => !task.plannedDate).length) > 0}
+                  enter="transition-opacity duration-300 ease-in-out"
+                  enterFrom="opacity-0"
+                  enterTo="opacity-100"
+                  leave="transition-opacity duration-300 ease-in-out"
+                  leaveFrom="opacity-100"
+                  leaveTo="opacity-0"
+                  as="div"
+                >
+                <div className="bg-gray-950 text-white text-sm mt-2 px-3 py-2 rounded">
+                  <h4 className="text-sm font-medium">Monthly tasks to plan</h4>
+                  <div className="flex flex-wrap gap-2 mt-1 task-return-area-M">
+                    {Object.entries(
+                      monthlyTasks.reduce((groups, task) => {
+                        if (task.plannedDate) return groups; // prevent duplication if already scheduled
+                        (groups[task.taskName] = groups[task.taskName] || []).push(task);
+                        return groups;
+                      }, {})
+                    ).map(([taskName, group]) => {  
+                    const topTask = group[0];
+                  const isGhost = String(topTask.id) === activeId;
+                    const badgeCount = (isGhost ? group.length-1 : group.length);
+
+                  return (
+                    <div key={topTask.id} className="relative inline-block">
+                      {!isGhost && (
+                        <TaskChip
+                          task={topTask}
+                          activeId={activeId}
+                          setTasks={setTasks}
+                        />
+                      )}
+                      {isGhost && (
+                        <div className={`badge chip-on-calendar badge-sm ${group.length === 1 ? 'badge-dash badge-secondary':'badge-outline badge-secondary'}`}>{topTask.taskName}</div>
+                      )}
+                      {group.length > 1 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                          {badgeCount}
+                        </span>
+                      )}
+                    </div>
+                  )
+                    })} 
+                  </div>
+                </div>
+                <div class="divider"></div>
+              </Transition>
+
+    {daysInMonth.map((week, index) => {
+    const isCurrentWeek = week.some(day => isSameDay(startOfWeek(new Date(), { weekStartsOn: 1 }), startOfWeek(day, { weekStartsOn: 1 })));
+    const weekStart = format(week[0], "MMM d");
+    const weekEnd = format(week[6], "MMM d");
+    const unallocatedWeeklyTasks = weeklyTasksByWeek[index];
+    const hasUnallocated = unallocatedWeeklyTasks.length > 0;
+
+    return (
+      <Card key={index} style={{ paddingTop: 0 }} className={`mb-4 border border-gray-300 ${isCurrentWeek ? 'ring-2 ring-yellow-300' : ''}`}>
+        <div className="bg-gray-800 text-white px-4 pt-3 pb-2 rounded overflow-hidden">
+          <h3 className="text-lg font-semibold">Week of {weekStart} - {weekEnd}</h3>
+
+          <Transition
+            show={hasUnallocated}
+            enter="transition-opacity duration-300 ease-in-out"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="transition-opacity duration-300 ease-in-out"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="bg-gray-950 text-sm mt-2 px-3 py-2 rounded">
+              <h4 className="text-sm font-medium">Weekly tasks to plan</h4>
+              <div className="flex flex-wrap gap-2 mt-1 task-return-area-W">
+                {Object.entries(
+                  unallocatedWeeklyTasks.reduce((groups, task) => {
+                    (groups[task.taskName] = groups[task.taskName] || []).push(task);
+                    return groups;
+                  }, {})
+                ).map(([taskName, group]) => {
+                  const topTask = group[0];
+                  const isGhost = String(topTask.id) === activeId;
+                  const badgeCount = (isGhost ? group.length - 1 : group.length);
+                  const isSingularGhost = (isGhost && group.length === 1);
+
+                  if (isSingularGhost)
+                    return (<div className='chip-on-calendar badge badge-outline badge-sm badge-dash badge-warning'>{topTask.taskName}</div>);
+
+                  return (
+                    <div key={topTask.id} className="relative inline-block">
+                      {!isGhost ? (
+                        <TaskChip task={topTask} activeId={activeId} setTasks={setTasks} taskCompletion />
+                      ) : (
+                        <div className="badge chip-on-calendar badge-outline badge-sm badge-warning">{topTask.taskName}</div>
+                      )}
+                      {group.length > 1 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                          {badgeCount}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </Transition>
-      </div>
-      <CardContent className="pt-4">
-        <div className="grid grid-cols-7 gap-2">
-          {week.map((day) => (
-            <DroppableDay
-              key={day.toISOString()}
-              activeId={activeId}
-              date={day}
-              onDrop={(task) => {
-                const dropDate = day;
-                const taskStart = parseISO(task.startDate);
-                const today = new Date();
-
-                if (task.type === "D" && dropDate > today) return;
-                if (task.type === "D" && dropDate.getMonth() !== targetMonth.getMonth()) return;
-
-                if (task.type === "W") {
-                  const dropWeekStart = startOfWeek(dropDate, { weekStartsOn: 1 });
-                  const dropWeekEnd = addDays(dropWeekStart, 6);
-                  if (taskStart < dropWeekStart || taskStart > dropWeekEnd) return;
-                }
-
-                if (task.type === "M") {
-                  if (
-                    taskStart.getMonth() !== dropDate.getMonth() ||
-                    taskStart.getFullYear() !== dropDate.getFullYear()
-                  ) return;
-                }
-
-                handleDrop(task, dropDate);
-              }}
-              targetMonth={targetMonth}
-              tasks={tasks}
-              handleDrop={handleDrop}
-              setTasks={setTasks}
-            />
-          ))}
         </div>
-      </CardContent>
-    </Card>
-  );
-})}
-      </CardContent>
-     </Card>
-      </div>
-      <DragOverlay>
-        <div className="z-50 relative">
-          {draggedTask && (
-            <TaskChip
-              task={draggedTask}
-              activeId={activeId}
-              setTasks={setTasks}
-              onMarkIncomplete={() => {}}
-            />
-          )}
+        <CardContent className="pt-4">
+          <div className="grid grid-cols-7 gap-2">
+            {week.map((day) => (
+              <DroppableDay
+                key={day.toISOString()}
+                activeId={activeId}
+                date={day}
+                onDrop={(task) => {
+                  const dropDate = day;
+                  const taskStart = parseISO(task.startDate);
+                  const today = new Date();
+
+                  if (task.type === "D" && dropDate > today) return;
+                  if (task.type === "D" && dropDate.getMonth() !== targetMonth.getMonth()) return;
+
+                  if (task.type === "W") {
+                    const dropWeekStart = startOfWeek(dropDate, { weekStartsOn: 1 });
+                    const dropWeekEnd = addDays(dropWeekStart, 6);
+                    if (taskStart < dropWeekStart || taskStart > dropWeekEnd) return;
+                  }
+
+                  if (task.type === "M") {
+                    if (
+                      taskStart.getMonth() !== dropDate.getMonth() ||
+                      taskStart.getFullYear() !== dropDate.getFullYear()
+                    ) return;
+                  }
+
+                  handleDrop(task, dropDate);
+                }}
+                targetMonth={targetMonth}
+                tasks={tasks}
+                handleDrop={handleDrop}
+                setTasks={setTasks}
+              />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  })}
+        </CardContent>
+      </Card>
         </div>
-      </DragOverlay>
+        <DragOverlay>
+          <div className="z-50 relative">
+            {draggedTask && (
+              <TaskChip
+                task={draggedTask}
+                activeId={activeId}
+                setTasks={setTasks}
+                onMarkIncomplete={() => {}}
+              />
+            )}
+          </div>
+        </DragOverlay>
+      </DragProvider>
     </DndContext>
+ 
   );
 }

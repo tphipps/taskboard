@@ -46,7 +46,7 @@ export default function DroppableDay({ date, onDrop, tasks, activeId, handleDrop
         <Star className="absolute top-1 right-1 w-4 h-4 text-yellow-400" fill="currentColor" />
       )}
       <div className="text-xs text-gray-500">{format(date, "EEE d")}</div>
-      <div className="flex flex-wrap gap-2 task-return-area-M">
+      <div className="flex flex-wrap gap-1 task-return-area-M">
         {tasks
           .filter((t) => t.type === "D" && parseISO(t.startDate).toDateString() === date.toDateString())
           .map((task) => {   
