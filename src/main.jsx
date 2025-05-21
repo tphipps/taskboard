@@ -48,12 +48,16 @@ const AppRoutes = () => {
       const res = await logout();
       if (res.status === 200) {
         setAuthenticatedUser(null);
+        sessionStorage.removeItem("authenticatedUser");
         navigate("/login");
       } else {
         throw new Error("network error");
       }
     } catch (err) {
       console.error("Logout failed:", err);
+      sessionStorage.removeItem("authenticatedUser");
+      setAuthenticatedUser(null);
+      navigate("/login");
     }
   };
 
