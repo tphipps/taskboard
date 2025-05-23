@@ -1,4 +1,5 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
+import { getTaskDisposition } from "../lib/taskDisposition"
 
 // These APIs are used by TaskBoard
 export async function updateTaskPlannedDate(taskId, date) {
@@ -21,8 +22,9 @@ export async function updateTaskPlannedDate(taskId, date) {
     });
     if (!res.ok) throw new Error("Failed to fetch tasks");
     const data = await res.json();
-    return data.map((t) => ({
-      ...t,
+    let updated = data.map((t) => ({
+      id: t.id,
+      type: t.type,
       taskName: t.task_name,
       startDate: t.start_date,
       completionDate: t.completion_date,
@@ -32,6 +34,10 @@ export async function updateTaskPlannedDate(taskId, date) {
       reviewerName: t.reviewer_first_name + ' ' + t.reviewer_last_name,
       reviewedDate: t.reviewed_date
     }));
+    return(updated.map((t) => ({
+      ...t,
+      disposition: getTaskDisposition(t)
+    })))
   }
 
   export async function updateTaskCompletion(taskId, date) {

@@ -2,10 +2,11 @@ import React, { useState, useRef } from "react";
 import { parseISO, startOfWeek, addDays } from "date-fns";
 import { useDraggable } from "@dnd-kit/core";
 import { motion } from "framer-motion";
-import { Award, CircleX, UserRound } from "lucide-react";
+import { Award, CircleX, ClockFading } from "lucide-react";
 import TaskTooltip from "./TaskTooltip.jsx";
 import { updateTaskCompletion } from "../lib/api";
 import { useGlobalIsDragging } from "../context/DragContext";
+import { getTaskDisposition } from "../lib/taskDisposition.js";
 
 export default function TaskChip({ task, setTasks }) {
   if (!task?.id) return null;
@@ -24,7 +25,6 @@ export default function TaskChip({ task, setTasks }) {
     return false;
   })();
 
-
   const draggable = useDraggable({ id: String(task.id), data: task });
   const { attributes, listeners, setNodeRef, transform } = isDraggable
       ? draggable
@@ -33,6 +33,24 @@ export default function TaskChip({ task, setTasks }) {
   const isComplete = Boolean(task.completionDate);
   const isTodayOrPast = task.plannedDate ? new Date() >= parseISO(task.plannedDate): null;
   const isReviewed = Boolean(task.reviewedDate);
+
+  const [isHovered, setIsHovered] = useState(false);
+  const hoverTimeout = useRef(null);
+
+  const handleMouseEnter = () => {
+    if (!globalIsDragging) {
+      hoverTimeout.current = setTimeout(() => {
+        setIsHovered(true);
+        console.log(JSON.stringify(task, null, 2))
+      }, 500);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    clearTimeout(hoverTimeout.current);
+    setIsHovered(false);
+  };
+
 
   // For use in Daily tasks only  
   const isToday = new Date().toDateString() === parseISO(task.startDate).toDateString();
@@ -44,7 +62,7 @@ export default function TaskChip({ task, setTasks }) {
       ? "badge-warning"
       : "badge-primary";
 
-  // Build a chip that is in the incomplete stack
+  // Build a chip that is in the unplanned stack
   if(!task.plannedDate && task.type !== "D") {
     return (
       <motion.div id={String(task.id)}
@@ -65,7 +83,7 @@ export default function TaskChip({ task, setTasks }) {
   // Build a chip that has been reviewed and therefore locked
   if (isReviewed) {
   return (
-    <div className="relative peer inline-block">
+    <div className="relative peer inline-block" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
       <div className="peer inline-block">
         <div
           key={task.id}
@@ -91,19 +109,18 @@ export default function TaskChip({ task, setTasks }) {
   if ((task.type == "D" && !isToday && isTodayOrPast ) 
     || (task.type == "W" && parseISO(task.startDate) < weekStart)) {
     return (
-    <div className="relative peer inline-block">
+    <div className="relative peer inline-block" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
       <div className="peer inline-block">
         <label
           key={task.id}
           className={`chip-on-calendar badge badge-outline badge-sm max-w-[160px] truncate overflow-hidden whitespace-nowrap text-left px-2 py-1 gap-1 ${chipColor}`}
         > 
-          {isComplete ? <UserRound size={16} /> :  <CircleX size={16} />}
+          {isComplete ? <ClockFading size={16} /> :  <CircleX size={16} />}
           {task.taskName}
         </label>
       </div>
       <div
         className="absolute left-1/2 top-full z-50 -translate-x-1/2 mt-3 invisible peer-hover:visible opacity-0 peer-hover:opacity-100 transition-all duration-300"
-        style={{ transitionDelay: "500ms" }}
       >
         <div className="pointer-events-auto">
           <TaskTooltip task={task} />
@@ -130,14 +147,23 @@ export default function TaskChip({ task, setTasks }) {
                     e.stopPropagation();
                     const newCompleted = e.target.checked;
                     const completionDate = newCompleted ? new Date() : null;
+                    task.completionDate = newCompleted ? new Date() : null;
                     updateTaskCompletion(task.id, completionDate);
                     setTasks(prev =>
                       prev.map(t =>
                         t.id === task.id
-                          ? { ...t, completionDate: completionDate ? completionDate.toISOString() : null }
+                          ? { ...t, completionDate: completionDate ? completionDate.toISOString() : null}
                           : t
                       )
                     );
+
+                    setTasks(prev =>
+                      prev.map(t =>
+                        t.id === task.id
+                          ? { ...t, disposition: getTaskDisposition(task) }
+                          : t
+                      )
+                    );  
                   }}
                 />
 
@@ -162,20 +188,6 @@ export default function TaskChip({ task, setTasks }) {
   }
 
   // Build a chip that's on the calendar
-  const [isHovered, setIsHovered] = useState(false);
-  const hoverTimeout = useRef(null);
-
-  const handleMouseEnter = () => {
-    if (!globalIsDragging) {
-      hoverTimeout.current = setTimeout(() => setIsHovered(true), 500);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    clearTimeout(hoverTimeout.current);
-    setIsHovered(false);
-  };
-
   return (
     <div className="relative inline-block" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
       <div className="inline-block">
