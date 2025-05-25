@@ -1,4 +1,5 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
+import { getTaskDisposition } from "../lib/taskDisposition"
 
 // These APIs are used by TaskBoard
 export async function updateTaskPlannedDate(taskId, date) {
@@ -13,6 +14,7 @@ export async function updateTaskPlannedDate(taskId, date) {
     });
   }
 
+ // Fetch Tasks fetches both the tasks for a given month and also the monthly targets
  export async function fetchTasks(childId, month) {
     const res = await fetch(`${API_BASE}/api.php?mode=getTasks&assignee=${encodeURIComponent(childId)}&month=${encodeURIComponent(month)}`,{
       method: "GET",
@@ -21,14 +23,39 @@ export async function updateTaskPlannedDate(taskId, date) {
     });
     if (!res.ok) throw new Error("Failed to fetch tasks");
     const data = await res.json();
-    return data.map((t) => ({
-      ...t,
+    let tasks = data.tasks.map((t) => ({
+      id: t.id,
+      type: t.type,
       taskName: t.task_name,
       startDate: t.start_date,
       completionDate: t.completion_date,
       reviewedDate: t.reviewed_date,
-      plannedDate: t.planned_date, 
+      plannedDate: t.planned_date,
+      monetaryValue: t.monetary_value,
+      reviewerName: t.reviewer_first_name + ' ' + t.reviewer_last_name,
+      reviewedDate: t.reviewed_date
     }));
+
+    // getTaskDisposition relies on the resulting variable names in the map above, so have
+    // to calculate it as a separate map and not as part of the variable renaming map  
+    let tasksWithDisposition = tasks.map((t) => ({
+      ...t,
+      disposition: getTaskDisposition(t)
+    }))
+
+    let missedTaskAmount = 0;
+    tasksWithDisposition.forEach(a => {
+      if (a.disposition === 'Missed') {
+        missedTaskAmount += Number(a.monetaryValue || 0);
+      }
+    });
+
+    return({monthlyTargetData: {targetAmount: data.month_data.target_amount,
+                                achievedAmount: data.month_data.achieved_amount,
+                                missedAmount: missedTaskAmount},
+            tasks: tasksWithDisposition
+    
+    })
   }
 
   export async function updateTaskCompletion(taskId, date) {

@@ -27,11 +27,18 @@ const AppRoutes = () => {
   const [showTimeoutModal, setShowTimeoutModal] = useState(false);
   const countdownRef = useRef(null);
   const timeoutRef = useRef(null);
+  const hasStartedTracking = useRef(false);
 
   const resetTimer = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (countdownRef.current) clearTimeout(countdownRef.current);
     timeoutRef.current = setTimeout(() => setShowTimeoutModal(true), 5 * 60 * 1000); // 5 min idle timeout
+  };
+
+  const stopTimer = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (countdownRef.current) clearTimeout(countdownRef.current);
+    setShowTimeoutModal(false);
   };
 
   const handleActivity = () => {
@@ -47,6 +54,7 @@ const AppRoutes = () => {
     try {
       const res = await logout();
       if (res.status === 200) {
+        stopTimer();
         setAuthenticatedUser(null);
         sessionStorage.removeItem("authenticatedUser");
         navigate("/login");
@@ -55,6 +63,7 @@ const AppRoutes = () => {
       }
     } catch (err) {
       console.error("Logout failed:", err);
+      stopTimer();
       sessionStorage.removeItem("authenticatedUser");
       setAuthenticatedUser(null);
       navigate("/login");
@@ -62,10 +71,12 @@ const AppRoutes = () => {
   };
 
   useEffect(() => {
-    if (authenticatedUser === null) return;
-    window.addEventListener("mousemove", handleActivity);
-    window.addEventListener("keydown", handleActivity);
-    resetTimer();
+    if (authenticatedUser && !hasStartedTracking.current) {
+      hasStartedTracking.current = true;
+      window.addEventListener("mousemove", handleActivity);
+      window.addEventListener("keydown", handleActivity);
+      resetTimer();
+    }
     return () => {
       window.removeEventListener("mousemove", handleActivity);
       window.removeEventListener("keydown", handleActivity);
@@ -94,8 +105,9 @@ const AppRoutes = () => {
           element={
             <LoginBox
               onLogin={(user) => {
+                stopTimer();
+                hasStartedTracking.current = false; // reset tracking so it restarts after login
                 setAuthenticatedUser(user);
-                resetTimer();
                 navigate("/dashboard");
               }}
             />
