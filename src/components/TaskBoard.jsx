@@ -36,6 +36,7 @@ export default function TaskBoard() {
   const [targetMonth, setTargetMonth] = useState(startOfMonth(new Date()));
 
   const [tasks, setTasks] = useState([]);
+  const [monthlyTarget, setMonthlyTarget] = useState({month: startOfMonth(new Date()), targetAmount: 0, achievedAmount: 0 })
   const [activeId, setActiveId] = useState(null);
 
   const goToPreviousMonth = () => {
@@ -54,13 +55,18 @@ export default function TaskBoard() {
     });
   };
 
+  function setMonthlyTaskData(monthlyTaskData) {
+    setTasks(monthlyTaskData.tasks);
+    setMonthlyTarget(monthlyTaskData.monthlyTargetData);
+  }
+
   const reloadTasks = () => {
     document.querySelectorAll("#calendar .calendar-cell").forEach((el) => {
       el.classList.add("skeleton", "bg-base-300");
     });
 
     setTimeout(() => {
-      fetchTasks(authenticatedUser.id, format(targetMonth, "yyyy-MM")).then(setTasks);
+      fetchTasks(authenticatedUser.id, format(targetMonth, "yyyy-MM")).then(result => setMonthlyTaskData(result));
       document.querySelectorAll("#calendar .calendar-cell").forEach((el) => {
         el.classList.remove("skeleton", "bg-base-300");
       });
@@ -70,7 +76,7 @@ export default function TaskBoard() {
   const monthlyTasks = tasks.filter((t) => t.type === "M" && !t.completionDate);
 
   useEffect(() => {
-        fetchTasks(authenticatedUser.id, format(targetMonth, "yyyy-MM")).then(setTasks);
+        fetchTasks(authenticatedUser.id, format(targetMonth, "yyyy-MM")).then(result => setMonthlyTaskData(result));
   }, [authenticatedUser, targetMonth]);  
 
   const daysInMonth = [];
@@ -139,20 +145,39 @@ export default function TaskBoard() {
         onRefresh={reloadTasks}
       />   
 
-      <Card id="calendar" className="mb-4 border-none bg-base-200">
-        <CardContent>
-          <div className="flex items-center justify-center gap-4 mb-4">
-            <button onClick={goToPreviousMonth} className="btn btn-sm btn-circle btn-ghost">
-              <MoveLeft className="w-5 h-5" />
-            </button>
-            <h2 className="text-xl font-semibold">
-              {format(targetMonth, "MMMM yyyy")}
-            </h2>
-            <button onClick={goToNextMonth} className="btn btn-sm btn-circle btn-ghost">
-              <MoveRight className="w-5 h-5" />
-            </button>
-          </div>
-
+          <Card id="calendar" className="mb-4 border-none bg-base-200">
+            <CardContent>
+              <div className="relative flex justify-between items-center mb-4">
+                <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center gap-4">
+                  <button onClick={goToPreviousMonth} className="btn btn-sm btn-circle btn-ghost">
+                    <MoveLeft className="w-5 h-5" />
+                  </button>
+                  <h2 className="text-xl font-semibold">
+                    {format(targetMonth, "MMMM yyyy")}
+                  </h2>
+                  <button onClick={goToNextMonth} className="btn btn-sm btn-circle btn-ghost">
+                    <MoveRight className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="ml-auto text-right text-sm">
+                  <div>
+                    <span className="font-semibold">Target monthly earnings:</span>
+                    <span className="ml-2 text-green-600 font-mono">
+                      ${parseFloat(monthlyTarget.targetAmount || 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Missed task value:</span>
+                    <span className="ml-2 text-red-500 font-mono">${parseFloat(monthlyTarget.missedAmount || 0).toFixed(2)}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Still achievable this month:</span>
+                    <span className="ml-2 text-yellow-600 font-mono">
+                      ${(parseFloat(monthlyTarget.targetAmount || 0) - parseFloat(monthlyTarget.missedAmount || 0)).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
                 <Transition
                   show={(monthlyTasks.filter(task => !task.plannedDate).length) > 0}
                   enter="transition-opacity duration-300 ease-in-out"
@@ -199,7 +224,7 @@ export default function TaskBoard() {
                     })} 
                   </div>
                 </div>
-                <div class="divider"></div>
+                <div>&nbsp;</div>
               </Transition>
 
     {daysInMonth.map((week, index) => {

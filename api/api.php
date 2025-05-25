@@ -122,7 +122,7 @@ switch ($mode) {
       $stmt->execute([$newPin, $userId]);
       echo json_encode(['status' => 'ok']);
       break;
-    case 'getTasks':
+    case 'getTasks': // Gets both tasks and monthly targets
       $assignee = $_GET['assignee'];
       $month = $_GET['month'];
       $startDate = $month . '-01';
@@ -144,6 +144,29 @@ switch ($mode) {
                             AND   a.start_date >= ? 
                             AND   a.start_date <= ?");
       $stmt->execute([$assignee, $startDate, $endDate]);
+      $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+      $stmt = $pdo->prepare("SELECT target_amount,
+                                    achieved_amount
+                             FROM   monthly_targets
+                             WHERE  user_id = ?
+                             AND    month = ?");
+      $stmt->execute([$assignee, $month]);
+      $monthData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+      http_response_code(200);
+      echo json_encode(["month_data"=>$monthData[0], "tasks"=> $tasks]);
+      break;
+    case 'getMonthlyTargets':
+      $userId = $_GET['user_id'];
+      $month = $_GET['month'];
+      $stmt = $pdo->prepare("SELECT a.id AS id, 
+                                    target_amount,
+                                    achieved_amount
+                                    FROM users a,
+                                    LEFT JOIN monthly_achievements b ON a.id = b.user_id
+                                    WHERE a.id = ?
+                                    AND b.month = ?");
+      $stmt->execute([$userId, $month]);
       http_response_code(200);
       echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
       break;
