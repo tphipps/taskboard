@@ -104,7 +104,7 @@ if (!isset($_SESSION['user'])) {
 switch ($mode) {
     case 'changePin':
       $data = json_decode(file_get_contents('php://input'), true);
-      $userId = $_SESSION['id'];
+      $userId = $_SESSION['user']['id'];
       $currentPin = $data['current_pin'];
       $newPin = $data['new_pin'];
 
